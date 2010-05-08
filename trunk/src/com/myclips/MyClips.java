@@ -14,59 +14,33 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 public class MyClips extends Activity {
 	
 	public static final String TAG = "ContactManager";
-	private ListView mClipList;
-	private boolean mShowInvisible;
-	private CheckBox mShowInvisibleControl;
+	private ClipboardDbManager mDbHelper;
 	
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
     	super.onCreate(savedInstanceState);
-    	setContentView(R.layout.clipboard);
-    	
-    	// Obtain handles to UI objects
-    	mClipList = (ListView) findViewById(R.id.clipList);
-    	mShowInvisibleControl = (CheckBox) findViewById(R.id.showInvisible);
-    	
-    	mShowInvisible = false;
-        mShowInvisibleControl.setChecked(mShowInvisible);
-        
-        // Register handler for UI elements
-        mShowInvisibleControl.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                Log.d(TAG, "mShowInvisibleControl changed: " + isChecked);
-                mShowInvisible = isChecked;
-                populateClipList();
-            }
-        });
-    	
-        // Populate clip list
-        populateClipList();
-        
+    	setContentView(R.layout.clipboard_list);
+    	mDbHelper = new ClipboardDbAdapter(this);
+    	mDbHelper.open();
+    	fillData();
     }
     
-    private void populateClipList() {
-        // Build adapter with clip entries
-        Cursor cursor = getClips();
-        String[] fields = new String[] { ClipsContract.Data.DISPLAY_NAME };
-        SimpleCursorAdapter adapter = new SimpleCursorAdapter(this, R.layout.clip_entry, cursor,
-                fields, new int[] {R.id.clipEntryText});
-        mClipList.setAdapter(adapter);
+    public void fillData() {
+    	Cursor c = mDbHelper.fetchAllCliboards();
+    	startManagingCursor(c);
+    	
+    	// TODO: Here we have to learn how to output all clipboards as we can
+    	// slide left/right on touch screen to change the clipboard
+    	// Now, this just returns a list view
+    	String[] from = new String[] { ClipboardDbAdapter.KEY_TITLE };
+    	int[] to = new int[] { /* TODO: R.id.text1 */};
+    	
+    	// Now create an array adapter and set it to display using our row
+        SimpleCursorAdapter clipboards =
+            new SimpleCursorAdapter(this, R.layout.clipboards_row, c, from, to);
+        setListAdapter(clipboards);
     }
-    
-    private Cursor getClips() {
-        // Run query
-        Uri uri = ClipsContract.Clips.CONTENT_URI;
-        String[] projection = new String[] {
-        	ContactsContract.Clips._ID,
-        	ContactsContract.Clips.DISPLAY_NAME
-        };
-        String selection = ContactsContract.Clips.IN_VISIBLE_GROUP + " = '" +
-                (mShowInvisible ? "0" : "1") + "'";
-        String[] selectionArgs = null;
-        String sortOrder = ClipsContract.Clips.DISPLAY_NAME + " COLLATE LOCALIZED ASC";
 
-        return managedQuery(uri, projection, selection, selectionArgs, sortOrder);
-    }
     
 }

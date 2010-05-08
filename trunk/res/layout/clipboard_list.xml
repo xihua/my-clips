@@ -7,8 +7,4 @@
               android:id="@+id/clipList"
               android:layout_height="wrap_content"
               android:layout_weight="1"/>
-    <CheckBox android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:id="@+id/showInvisible"
-              android:text="@string/showInvisible"/>
 </LinearLayout>
