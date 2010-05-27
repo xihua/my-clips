@@ -3,7 +3,7 @@
     package="com.myclips"
     android:versionCode="1" 
     android:versionName="1.0">
-    <application android:label="@string/app_name" android:icon="@drawable/icon">
+    <application android:label="@string/app_name" android:icon="@drawable/myclips_icon">
         <activity android:name=".MyClips" 
         		  android:label="@string/app_name">
             <intent-filter>
@@ -22,5 +22,5 @@
     <uses-permission android:name="android.permission.GET_CLIPS" />
     <uses-permission android:name="android.permission.READ_CLIPS" />
     <uses-permission android:name="android.permission.WRITE_CLIPS" />
-	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"></uses-permission>
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>
