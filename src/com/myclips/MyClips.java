@@ -1,7 +1,12 @@
 package com.myclips;
 
+import com.myclips.service.ClipboardMonitor;
+
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,7 +16,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ViewFlipper;
 
-public class MyClips extends Activity implements OnTouchListener {
+public class MyClips extends Activity implements OnTouchListener, LogTag {
+    //private final static String TAG = "MyClips"; 
 
 	// TODO: Clean this Test Case.
 	static String[] items = { "lorem", "ipsum", "dolor", "sit", "amet", "consectetuer",
@@ -31,7 +37,21 @@ public class MyClips extends Activity implements OnTouchListener {
 		// fillData();
 		LinearLayout ll = (LinearLayout) findViewById(R.id.layout_main);
 		ll.setOnTouchListener((OnTouchListener) this);
+		startClipboardMonitor();
+	}
 
+	/* When ClipboardMonitor doesn't start on boot due to the reason like we
+	 * install new app after android phone boots, causing it won't receive
+	 * boot broadcast, this method makes sure ClipboardMonitor starts when
+	 * MyClips activity created. 
+	 */
+	private void startClipboardMonitor() {
+        ComponentName service = startService(
+                new Intent(this, ClipboardMonitor.class));
+        if (service == null) {
+            Log.e(TAG, "Can't start service "
+                    + ClipboardMonitor.class.getName());
+        }
 	}
 
 	@Override
