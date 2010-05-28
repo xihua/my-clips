@@ -48,6 +48,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         Notification notif = new Notification(R.drawable.myclips_icon,
                 "MyClips clipboard monitor is started",
                 System.currentTimeMillis());
+        notif.flags |= (Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR);
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
                 new Intent(this, MyClips.class), 0);
         notif.setLatestEventInfo(this, getText(R.string.clip_monitor_service),
