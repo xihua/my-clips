@@ -5,12 +5,14 @@ import com.myclips.MyClips;
 import com.myclips.R;
 import com.myclips.db.Clip;
 import com.myclips.db.ClipboardDbAdapter;
+import com.myclips.prefs.AppPrefs;
 
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.text.ClipboardManager;
 import android.util.Log;
@@ -25,6 +27,7 @@ public class ClipboardMonitor extends Service implements LogTag {
     private MonitorTask mTask = new MonitorTask();
     private ClipboardManager mCM;
     private ClipboardDbAdapter mDbAdapter;
+    private SharedPreferences mPrefs;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -37,6 +40,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         showNotification();
         mCM = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         mDbAdapter = new ClipboardDbAdapter(this);
+        mPrefs = getSharedPreferences(AppPrefs.NAME, MODE_PRIVATE);
         mTask.start();
     }
 
@@ -66,17 +70,10 @@ public class ClipboardMonitor extends Service implements LogTag {
     private class MonitorTask extends Thread {
 
         private volatile boolean mKeepRunning = false;
-        private int mIntervalMillis;
         private CharSequence mOldClip = null;
-
         
         public MonitorTask() {
-            this(3000);
-        }
-
-        public MonitorTask(int intervalMillis) {
             super("ClipboardMonitor");
-            this.mIntervalMillis = intervalMillis;
         }
 
         /** Cancel task */
@@ -91,7 +88,8 @@ public class ClipboardMonitor extends Service implements LogTag {
             while (true) {
                 doTask();
                 try {
-                    Thread.sleep(mIntervalMillis);
+                    Thread.sleep(mPrefs.getInt(AppPrefs.KEY_MONITOR_INTERVAL,
+                            AppPrefs.DEF_MONITOR_INTERVAL));
                 } catch (InterruptedException ignored) {
                 }
                 if (!mKeepRunning) {
@@ -105,12 +103,10 @@ public class ClipboardMonitor extends Service implements LogTag {
                 CharSequence newClip = mCM.getText();
                 if (!newClip.equals(mOldClip)) {
                     mOldClip = newClip;
-                    /* TODO: now just insert into default clipboard (id = 1);
-                     * in the future, get selected clipboard from Preference
-                     * to insert new clips
-                     */
                     mDbAdapter.insertClip(Clip.CLIP_TYPE_TEXT,
-                            newClip.toString(), 1);
+                            newClip.toString(),
+                            mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
+                                    AppPrefs.DEF_OPERATING_CLIPBOARD));
                     Log.i(TAG, "new clip inserted: " + newClip.toString());
                 }
             }
