@@ -34,7 +34,7 @@ public class ClipboardMonitor extends Service implements LogTag {
     
     /** Image type to be monitored */
     private static final String[] IMAGE_SUFFIXS = new String[] {
-        "jpg", "jpeg", "gif", "png"
+        ".jpg", ".jpeg", ".gif", ".png"
     };
     /** Path to browser downloads */
     private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download";
