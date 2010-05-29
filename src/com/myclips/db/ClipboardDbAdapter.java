@@ -26,13 +26,13 @@ import android.util.Log;
  * </pre>
  */
 public class ClipboardDbAdapter implements LogTag {
-    //private static final String TAG = "ClipboardDbAdapter";
+    // private static final String TAG = "ClipboardDbAdapter";
 
     private static final String DATABASE_NAME = "clipboard.db";
     private static final int DATABASE_VERSION = 2;
     private static final String CLIPBOARDS_TABLE_NAME = "clipboards";
     private static final String CLIPS_TABLE_NAME = "clips";
-    
+
     /** Convenient class for handling database creation and upgrade */
     private static class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -69,23 +69,23 @@ public class ClipboardDbAdapter implements LogTag {
             onCreate(db);
         }
     }
-    
+
     private DatabaseHelper mDbHelper;
 
     /**
      * Get an adapter to manipulate the clipboard database. The clipboard will
      * be created if it doesn't exist yet.
-     *  
+     *
      * @param context  Used to open or create database
      * @throws SQLException  Thrown when opening or creating database fails
      */
     public ClipboardDbAdapter(Context context) throws SQLException {
         this.mDbHelper = new DatabaseHelper(context);
     }
-    
+
     /**
      * Insert a new clipboard
-     * 
+     *
      * @param clipboardName  Name of clipboard
      */
     public void insertClipboard(String clipboardName) {
@@ -101,7 +101,7 @@ public class ClipboardDbAdapter implements LogTag {
 
     /**
      * Update information of clipboard by clipboard id
-     *  
+     *
      * @param clipboardId  Id of clipboard
      * @param clipboardName  New name of clipboard; if null, unmodified
      */
@@ -114,13 +114,37 @@ public class ClipboardDbAdapter implements LogTag {
             return ;
         }
         mDbHelper.getWritableDatabase().update(CLIPBOARDS_TABLE_NAME, values,
-                Clipboard._ID + " = " + clipboardId, null);
+                Clipboard._ID + "=" + clipboardId, null);
+    }
+
+    /**
+     * Delete a clipboard by clipboard id
+     * <p>
+     * Clips in the clipboard are also deleted.
+     * 
+     * @param clipboardId  Id of clipboard to be deleted
+     */
+    public void deleteClipboard(int clipboardId) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+        db.delete(CLIPS_TABLE_NAME, Clip.COL_CLIPBOARD + "=" + clipboardId, null);
+        db.delete(CLIPBOARDS_TABLE_NAME, Clipboard._ID + "=" + clipboardId, null);
     }
     
     /**
+     * Query all columns of all clipboards
+     *
+     * @return {@link Cursor} object, which is positioned before the first entry
+     */
+    public Cursor queryAllClipboards() {
+        return mDbHelper.getReadableDatabase().query(CLIPBOARDS_TABLE_NAME,
+                new String[] { Clipboard._ID, Clipboard.COL_NAME }, null, null,
+                null, null, null);
+    }
+
+    /**
      * Insert a new clip into specified clipboard. The TIME feild of this clip
      * is current time of calling this method.
-     * 
+     *
      * @param clipType  Type of clip
      * @param clipData  Data of clip
      * @param clipboardId  Id of clipboard containing this clip
@@ -135,24 +159,13 @@ public class ClipboardDbAdapter implements LogTag {
                 Clip.COL_DATA, values);
         if (rowId < 0) {
             Log.e(TAG, "add clip failed");
-            return;
+            return ;
         }
     }
 
     /**
-     * Query all columns of all clipboards 
-     *
-     * @return  {@link Cursor} object, which is positioned before the first entry
-     */
-    public Cursor queryAllClipboards() {
-        return mDbHelper.getReadableDatabase().query(CLIPBOARDS_TABLE_NAME,
-                new String[] {Clipboard._ID, Clipboard.COL_NAME},
-                null, null, null, null, null);
-    }
-    
-    /**
      * Update information of a clip by clip id
-     * 
+     *
      * @param clipId  Id of clip to be updated
      * @param clipType  New type of clip; if negative, unmodified
      * @param clipData  New data of clip; if null, unmodified
@@ -174,45 +187,54 @@ public class ClipboardDbAdapter implements LogTag {
         if (values.size() <= 0) {
             return ;
         }
-        db.update(CLIPS_TABLE_NAME, values, Clip._ID + " = " + clipId, null);
+        db.update(CLIPS_TABLE_NAME, values, Clip._ID + "=" + clipId, null);
+    }
+
+    /**
+     * Delete a clip by clip id
+     *
+     * @param clipId  Id of clip
+     */
+    public void deleteClip(int clipId) {
+        mDbHelper.getWritableDatabase().delete(CLIPS_TABLE_NAME,
+                Clip._ID + "=" + clipId, null);
     }
     
     /**
      * Query given columns of specified clips in specified order
-     * 
+     *
      * @param columns  Target columns
      * @param selection  Clip filter
-     * @param selectionArgs  Clip filter arguments, if any 
+     * @param selectionArgs  Clip filter arguments, if any
      * @param orderBy  Output order
-     * @return  {@link Cursor} object, which is positioned before first entry
+     * @return {@link Cursor} object, which is positioned before first entry
      */
     public Cursor queryClips(String[] columns, String selection,
             String[] selectionArgs, String orderBy) {
-        return mDbHelper.getReadableDatabase().query(CLIPS_TABLE_NAME,
-                columns, selection, selectionArgs, null, null, orderBy);
+        return mDbHelper.getReadableDatabase().query(CLIPS_TABLE_NAME, columns,
+                selection, selectionArgs, null, null, orderBy);
     }
 
     /**
      * Query given columns of all clips
-     * 
+     *
      * @param columns  Target columns
-     * @return  {@link Cursor} object, which is positioned before first entry
+     * @return {@link Cursor} object, which is positioned before first entry
      */
     public Cursor queryAllClips(String[] columns) {
         return queryClips(columns, null, null, Clip.DEFAULT_SORT_ORDER);
     }
-    
+
     /**
      * Query all columns of all clips
-     * 
+     *
      * @return {@link Cursor} object, which is positioned before first entry
      */
     public Cursor queryAllClips() {
-        return queryAllClips(new String[] {
-                Clip._ID, Clip.COL_TYPE, Clip.COL_DATA, Clip.COL_TIME,
-                Clip.COL_CLIPBOARD});
+        return queryAllClips(new String[] { Clip._ID, Clip.COL_TYPE,
+                Clip.COL_DATA, Clip.COL_TIME, Clip.COL_CLIPBOARD });
     }
-    
+
     /**
      * Close open database
      */
