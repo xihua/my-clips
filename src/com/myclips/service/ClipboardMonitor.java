@@ -1,5 +1,8 @@
 package com.myclips.service;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.myclips.LogTag;
 import com.myclips.MyClips;
 import com.myclips.R;
@@ -13,16 +16,29 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.FileObserver;
 import android.os.IBinder;
 import android.text.ClipboardManager;
 import android.util.Log;
 
 /**
  * Starts a background thread to monitor the states of clipboard and stores
- * any new clips in the SQLite database.
+ * any new clips into the SQLite database.
+ * <p>
+ * <i>Note:</i> the current android clipboard system service only supports
+ * text clips, so in browser, we can just save images to external storage
+ * (SD card). This service also monitors the downloads of browser, if any
+ * image is detected, it will be stored into SQLite database, too.   
  */
 public class ClipboardMonitor extends Service implements LogTag {
-
+    
+    /** Image type to be monitored */
+    private static final String[] IMAGE_SUFFIXS = new String[] {
+        "jpg", "jpeg", "gif", "png"
+    };
+    /** Path to browser downloads */
+    private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download";
+    
     private NotificationManager mNM;
     private MonitorTask mTask = new MonitorTask();
     private ClipboardManager mCM;
@@ -68,10 +84,15 @@ public class ClipboardMonitor extends Service implements LogTag {
     public void onStart(Intent intent, int startId) {
     }
 
+    /**
+     * Monitor task: monitor new text clips in global system clipboard and
+     * new image clips in browser download directory
+     */
     private class MonitorTask extends Thread {
 
         private volatile boolean mKeepRunning = false;
         private CharSequence mOldClip = null;
+        private BrowserDownloadMonitor mBDM = new BrowserDownloadMonitor();
         
         public MonitorTask() {
             super("ClipboardMonitor");
@@ -86,6 +107,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         @Override
         public void run() {
             mKeepRunning = true;
+            mBDM.startWatching();
             while (true) {
                 doTask();
                 try {
@@ -97,18 +119,68 @@ public class ClipboardMonitor extends Service implements LogTag {
                     break;
                 }
             }
+            mBDM.stopWatching();
         }
         
         private void doTask() {
             if (mCM.hasText()) {
                 CharSequence newClip = mCM.getText();
                 if (!newClip.equals(mOldClip)) {
+                    Log.i(TAG, "detect new text clip: " + newClip.toString());
                     mOldClip = newClip;
                     mDbAdapter.insertClip(Clip.CLIP_TYPE_TEXT,
                             newClip.toString(),
                             mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
                                     AppPrefs.DEF_OPERATING_CLIPBOARD));
-                    Log.i(TAG, "new clip inserted: " + newClip.toString());
+                    Log.i(TAG, "new text clip inserted: " + newClip.toString());
+                }
+            }
+        }
+        
+        /**
+         * Monitor change of download directory of browser. It listens two
+         * events: <tt>CREATE</tt> and <tt>CLOSE_WRITE</tt>. <tt>CREATE</tt>
+         * event occurs when new file created in download directory. If this
+         * file is image, new image clip will be inserted into database when 
+         * receiving <tt>CLOSE_WRITE</tt> event, meaning file is sucessfully
+         * downloaded.
+         */
+        private class BrowserDownloadMonitor extends FileObserver {
+
+            private Set<String> mFiles = new HashSet<String>();
+            
+            public BrowserDownloadMonitor() {
+                super(BROWSER_DOWNLOAD_PATH, CREATE | CLOSE_WRITE);
+            }
+            
+            private void doDownloadCompleteAction(String path) {
+                mDbAdapter.insertClip(Clip.CLIP_TYPE_IMAGE,
+                        BROWSER_DOWNLOAD_PATH + path,
+                        mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
+                                AppPrefs.DEF_OPERATING_CLIPBOARD));
+                Log.i(TAG, "new image clip inserted: " + path);
+            }
+            
+            @Override
+            public void onEvent(int event, String path) {
+                switch (event) {
+                    case CREATE:
+                        for (String s : IMAGE_SUFFIXS) {
+                            if (path.endsWith(s)) {
+                                Log.i(TAG, "detect new image: " + path);
+                                mFiles.add(path);
+                                break;
+                            }
+                        }
+                        break;
+                    case CLOSE_WRITE:
+                        if (mFiles.remove(path)) { // File download completes
+                            doDownloadCompleteAction(path);
+                        }
+                        break;
+                    default:
+                        throw new RuntimeException("BrowserDownloadMonitor" +
+                        		" got unexpected event");
                 }
             }
         }
