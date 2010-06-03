@@ -41,6 +41,13 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	private float downXValue;	
 	private static final int OPT_NEW_CLIPBOARD = 0;
 	
+	
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		mDbHelper.close();
+	}
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -134,8 +141,13 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		
 		DialogInterface.OnClickListener dialogListener = new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int whichButton) {
-				String value = in.getText().toString();
-				mDbHelper.insertClipboard(value);
+				String name = in.getText().toString();
+				mDbHelper.insertClipboard(name);
+				Cursor cursor = mDbHelper.queryClipboard(name);
+				cursor.moveToNext();
+				SharedPreferences.Editor editor = mPrefs.edit();
+				editor.putInt(AppPrefs.KEY_OPERATING_CLIPBOARD, cursor.getInt(0));
+				editor.commit();
 			}
 		};
 		
