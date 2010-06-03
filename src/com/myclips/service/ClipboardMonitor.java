@@ -91,7 +91,7 @@ public class ClipboardMonitor extends Service implements LogTag {
     private class MonitorTask extends Thread {
 
         private volatile boolean mKeepRunning = false;
-        private CharSequence mOldClip = null;
+        private String mOldClip = null;
         private BrowserDownloadMonitor mBDM = new BrowserDownloadMonitor();
         
         public MonitorTask() {
@@ -124,7 +124,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         
         private void doTask() {
             if (mCM.hasText()) {
-                CharSequence newClip = mCM.getText();
+                String newClip = mCM.getText().toString();
                 if (!newClip.equals(mOldClip)) {
                     Log.i(TAG, "detect new text clip: " + newClip.toString());
                     mOldClip = newClip;
