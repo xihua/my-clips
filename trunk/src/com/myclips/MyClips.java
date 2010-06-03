@@ -28,7 +28,7 @@ import android.widget.SimpleCursorAdapter;
 import android.widget.ViewFlipper;
 
 //public class MyClips extends Activity implements OnTouchListener, LogTag {
-public class MyClips extends ListActivity implements LogTag {
+public class MyClips extends Activity implements LogTag {
 	
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;	
@@ -36,7 +36,9 @@ public class MyClips extends ListActivity implements LogTag {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		getListView().setOnCreateContextMenuListener(this);
+		setContentView(R.layout.main);
+		//getListView().setOnCreateContextMenuListener(this);
+		
 		mDbHelper = new ClipboardDbAdapter(this);
 		
 		getClips();
@@ -48,26 +50,37 @@ public class MyClips extends ListActivity implements LogTag {
 	}
 	
 	private void getClips() {
-		Cursor clipsCursor = mDbHelper.queryAllClips(new String[] { Clip._ID, Clip.COL_DATA }, 1);
-		startManagingCursor(clipsCursor);
-		
-		Log.i(TAG, "clip count = " + clipsCursor.getCount());
+		//Log.i(TAG, "clip count = " + clipsCursor.getCount());
 		
 		String[] from = new String[] { Clip.COL_DATA };
 		int[] to = new int[] { R.id.clipEntryText };
 		
+		/*
 		SimpleCursorAdapter mAdapter = 
 			new SimpleCursorAdapter(this, R.layout.clip_entry, clipsCursor, from, to);
-		
-
 		Log.i(TAG, "mAdapter = " + mAdapter);
-		
 		setListAdapter(mAdapter);
+		// */
 		
-		//ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);		
-		//vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-		//		ViewGroup.LayoutParams.WRAP_CONTENT));
+		ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
 		
+		Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
+		while (clipboardsCursor.moveToNext()) {
+		    int clipboardId = clipboardsCursor.getInt(0);
+		    
+		    Cursor clipsCursor = mDbHelper.queryAllClips(
+		            new String[] { Clip._ID, Clip.COL_DATA }, clipboardId);
+	        startManagingCursor(clipsCursor);
+	        
+		    ListView lv = new ListView(this);
+		    SimpleCursorAdapter adapter = new SimpleCursorAdapter(
+		            this, R.layout.clip_entry,
+		            mDbHelper.queryAllClips(clipboardId), from, to);
+		    lv.setAdapter(adapter);
+		    
+	        vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+	                ViewGroup.LayoutParams.WRAP_CONTENT));
+		}
 	}
 
 	/* When ClipboardMonitor doesn't start on boot due to the reason like we
@@ -84,6 +97,7 @@ public class MyClips extends ListActivity implements LogTag {
         }
 	}
 	
+	/*
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 	    super.onCreateOptionsMenu(menu);
@@ -91,6 +105,7 @@ public class MyClips extends ListActivity implements LogTag {
 	    inflater.inflate(R.menu.menu, menu);
 	    return true;
 	}
+	*/
 
 	/*
 	@Override
