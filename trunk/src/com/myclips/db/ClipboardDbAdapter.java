@@ -32,6 +32,14 @@ public class ClipboardDbAdapter implements LogTag {
     private static final int DATABASE_VERSION = 2;
     private static final String CLIPBOARDS_TABLE_NAME = "clipboards";
     private static final String CLIPS_TABLE_NAME = "clips";
+    private static final String[] CLIPBOARDS_PROJECTION = new String[] {
+        Clipboard._ID, Clipboard.COL_NAME
+    };
+    private static final String[] CLIPS_PROJECTION = new String[] {
+        Clip._ID, Clip.COL_TYPE, Clip.COL_DATA, Clip.COL_TIME,
+        Clip.COL_CLIPBOARD
+    };
+
 
     /** Convenient class for handling database creation and upgrade */
     private static class DatabaseHelper extends SQLiteOpenHelper {
@@ -121,7 +129,7 @@ public class ClipboardDbAdapter implements LogTag {
      * Delete a clipboard by clipboard id
      * <p>
      * Clips in the clipboard are also deleted.
-     * 
+     *
      * @param clipboardId  Id of clipboard to be deleted
      */
     public void deleteClipboard(int clipboardId) {
@@ -129,7 +137,7 @@ public class ClipboardDbAdapter implements LogTag {
         db.delete(CLIPS_TABLE_NAME, Clip.COL_CLIPBOARD + "=" + clipboardId, null);
         db.delete(CLIPBOARDS_TABLE_NAME, Clipboard._ID + "=" + clipboardId, null);
     }
-    
+
     /**
      * Query all columns of all clipboards
      *
@@ -137,8 +145,7 @@ public class ClipboardDbAdapter implements LogTag {
      */
     public Cursor queryAllClipboards() {
         return mDbHelper.getReadableDatabase().query(CLIPBOARDS_TABLE_NAME,
-                new String[] { Clipboard._ID, Clipboard.COL_NAME }, null, null,
-                null, null, null);
+                CLIPBOARDS_PROJECTION, null, null, null, null, null);
     }
 
     /**
@@ -199,7 +206,7 @@ public class ClipboardDbAdapter implements LogTag {
         mDbHelper.getWritableDatabase().delete(CLIPS_TABLE_NAME,
                 Clip._ID + "=" + clipId, null);
     }
-    
+
     /**
      * Query given columns of specified clips in specified order
      *
@@ -216,7 +223,42 @@ public class ClipboardDbAdapter implements LogTag {
     }
 
     /**
-     * Query given columns of all clips
+     * Query given columns of clips in the given clipboard in specified order
+     *
+     * @param columns  Target columns
+     * @param clipboardId  Id of clipboard
+     * @param orderBy  Order
+     * @return {@link Cursor} object, which is positioned before first entry
+     */
+    public Cursor queryClips(String[] columns, int clipboardId,
+            String orderBy) {
+        return queryClips(columns, Clip.COL_CLIPBOARD + "=" + clipboardId,
+                null, orderBy);
+    }
+
+    /**
+     * Query given columns of clips in the given clipboard
+     *
+     * @param columns  Target columns
+     * @param clipboardId  Id of clipboard
+     * @return {@link Cursor} object, which is positioned before first entry
+     */
+    public Cursor queryAllClips(String[] columns, int clipboardId) {
+        return queryClips(columns, clipboardId, Clip.DEFAULT_SORT_ORDER);
+    }
+
+    /**
+     * Query all columns of clips in the given clipboard
+     *
+     * @param clipboardId  Id of clipboard
+     * @return {@link Cursor} object, which is positioned before first entry
+     */
+    public Cursor queryAllClips(int clipboardId) {
+        return queryAllClips(CLIPS_PROJECTION, clipboardId);
+    }
+
+    /**
+     * Query given columns of all clips in all clipboards
      *
      * @param columns  Target columns
      * @return {@link Cursor} object, which is positioned before first entry
@@ -226,13 +268,12 @@ public class ClipboardDbAdapter implements LogTag {
     }
 
     /**
-     * Query all columns of all clips
+     * Query all columns of all clips in all clipboards
      *
      * @return {@link Cursor} object, which is positioned before first entry
      */
     public Cursor queryAllClips() {
-        return queryAllClips(new String[] { Clip._ID, Clip.COL_TYPE,
-                Clip.COL_DATA, Clip.COL_TIME, Clip.COL_CLIPBOARD });
+        return queryAllClips(CLIPS_PROJECTION);
     }
 
     /**
