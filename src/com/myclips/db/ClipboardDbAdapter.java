@@ -147,6 +147,18 @@ public class ClipboardDbAdapter implements LogTag {
         return mDbHelper.getReadableDatabase().query(CLIPBOARDS_TABLE_NAME,
                 CLIPBOARDS_PROJECTION, null, null, null, null, null);
     }
+    
+    /**
+     * Query the clipboard with given id
+     *
+     * @return {@link Cursor} object, which is positioned to the entry
+     */
+    public Cursor queryClipboard(String clipboardName) {
+        return mDbHelper.getReadableDatabase().query(CLIPBOARDS_TABLE_NAME,
+                CLIPBOARDS_PROJECTION, Clipboard.COL_NAME + "='" + clipboardName + "'",
+                null, null, null, null);
+    }
+    
 
     /**
      * Insert a new clip into specified clipboard. The TIME feild of this clip
