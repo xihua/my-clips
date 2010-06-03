@@ -6,20 +6,26 @@ import com.myclips.prefs.AppPrefs;
 import com.myclips.service.ClipboardMonitor;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.text.Editable;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -27,24 +33,28 @@ import android.widget.ResourceCursorAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.ViewFlipper;
 
-//public class MyClips extends Activity implements OnTouchListener, LogTag {
-public class MyClips extends Activity implements LogTag {
-	
+public class MyClips extends Activity implements OnTouchListener, LogTag {
+//public class MyClips extends Activity implements LogTag {
+	ViewFlipper vf = null;
+	SharedPreferences mPrefs;
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;	
+	private static final int OPT_NEW_CLIPBOARD = 0;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		
 		setContentView(R.layout.main);
 		//getListView().setOnCreateContextMenuListener(this);
 		
 		mDbHelper = new ClipboardDbAdapter(this);
+		mPrefs = getSharedPreferences(AppPrefs.NAME, 0);
 		
 		getClips();
 		
-		//LinearLayout ll = (LinearLayout) findViewById(R.id.clipList);
-		//ll.setOnTouchListener((OnTouchListener) this);
+		LinearLayout ll = (LinearLayout) findViewById(R.id.layout_main);
+		ll.setOnTouchListener((OnTouchListener) this);
 		startClipboardMonitor();
 		
 	}
@@ -62,12 +72,13 @@ public class MyClips extends Activity implements LogTag {
 		setListAdapter(mAdapter);
 		// */
 		
-		ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
+		vf = (ViewFlipper) findViewById(R.id.details);
 		
 		Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
+		
 		while (clipboardsCursor.moveToNext()) {
 		    int clipboardId = clipboardsCursor.getInt(0);
-		    
+		    Log.i(TAG, "clipboard name: " + clipboardsCursor.getString(1));
 		    Cursor clipsCursor = mDbHelper.queryAllClips(
 		            new String[] { Clip._ID, Clip.COL_DATA }, clipboardId);
 	        startManagingCursor(clipsCursor);
@@ -96,33 +107,47 @@ public class MyClips extends Activity implements LogTag {
                     + ClipboardMonitor.class.getName());
         }
 	}
-	
-	/*
+
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 	    super.onCreateOptionsMenu(menu);
-	    menu.add(0, INSERT_ID, 0, R.string.create_new_clipboard);
-	    inflater.inflate(R.menu.menu, menu);
+	    menu.add(0, OPT_NEW_CLIPBOARD, 0, R.string.create_new_clipboard);
 	    return true;
 	}
-	*/
+	
+	@Override
+	public boolean onMenuItemSelected(int featureId, MenuItem item) {
+		switch (item.getItemId()) {
+		case OPT_NEW_CLIPBOARD:
+			createNewClipboard();
+			return true;
+		}
+		return super.onMenuItemSelected(featureId, item);
+	}
+	
+	public void createNewClipboard() {		
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setMessage("Enter name of new clipboard");
+		
+		final EditText in = new EditText(this);
+		alert.setView(in);
+		
+		DialogInterface.OnClickListener dialogListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				String value = in.getText().toString();
+				mDbHelper.insertClipboard(value);
+			}
+		};
+		
+		alert.setPositiveButton("OK", dialogListener);
+		alert.show();
+	}
+	
 
-	/*
 	@Override
 	public boolean onTouch(View v, MotionEvent me) {
 		// upXValue: X coordinate when the user releases the finger
 		float upXValue = 0;
-		
-		// reference to the ViewFlipper
-		ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
-		
-		// TODO: Here we have to replace this loop elements with the clipboards
-		for (String item : items) {
-			Button btn = new Button(this);
-			btn.setText(item);
-			vf.addView(btn, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-					ViewGroup.LayoutParams.WRAP_CONTENT));
-		}
 		
 		switch (me.getAction()) {
 			case MotionEvent.ACTION_DOWN: {
@@ -151,6 +176,5 @@ public class MyClips extends Activity implements LogTag {
 		// if return false, these actions won't be recorded
 		return true;
 	}
-	*/
 	
 }
