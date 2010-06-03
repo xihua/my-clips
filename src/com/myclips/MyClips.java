@@ -7,46 +7,35 @@ import com.myclips.service.ClipboardMonitor;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ListActivity;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.text.Editable;
 import android.util.Log;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.ResourceCursorAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.ViewFlipper;
 
+
 public class MyClips extends Activity implements OnTouchListener, LogTag {
-//public class MyClips extends Activity implements LogTag {
+
 	ViewFlipper vf = null;
 	SharedPreferences mPrefs;
+	private static final int OPT_NEW_CLIPBOARD = 0;
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;	
-	private static final int OPT_NEW_CLIPBOARD = 0;
 	
-	
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		mDbHelper.close();
-	}
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -58,26 +47,25 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		mDbHelper = new ClipboardDbAdapter(this);
 		mPrefs = getSharedPreferences(AppPrefs.NAME, 0);
 		
-		getClips();
+		getClipboards();
 		
 		LinearLayout ll = (LinearLayout) findViewById(R.id.layout_main);
 		ll.setOnTouchListener((OnTouchListener) this);
-		startClipboardMonitor();
 		
+		startClipboardMonitor();
 	}
 	
-	private void getClips() {
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		mDbHelper.close();
+	}
+	
+	private void getClipboards() {
 		//Log.i(TAG, "clip count = " + clipsCursor.getCount());
 		
 		String[] from = new String[] { Clip.COL_DATA };
 		int[] to = new int[] { R.id.clipEntryText };
-		
-		/*
-		SimpleCursorAdapter mAdapter = 
-			new SimpleCursorAdapter(this, R.layout.clip_entry, clipsCursor, from, to);
-		Log.i(TAG, "mAdapter = " + mAdapter);
-		setListAdapter(mAdapter);
-		// */
 		
 		vf = (ViewFlipper) findViewById(R.id.details);
 		
@@ -134,12 +122,12 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	
 	public void createNewClipboard() {		
 		AlertDialog.Builder alert = new AlertDialog.Builder(this);
-		alert.setMessage("Enter name of new clipboard");
+		alert.setMessage("Enter a name for new clipboard");
 		
 		final EditText in = new EditText(this);
 		alert.setView(in);
 		
-		DialogInterface.OnClickListener dialogListener = new DialogInterface.OnClickListener() {
+		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int whichButton) {
 				String name = in.getText().toString();
 				mDbHelper.insertClipboard(name);
@@ -151,7 +139,14 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 			}
 		};
 		
-		alert.setPositiveButton("OK", dialogListener);
+		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {  
+				// Do nothing; canceled...  
+			}  
+		};
+		
+		alert.setPositiveButton("OK", OKListener);
+		alert.setNegativeButton("Cancel", CancelListener);
 		alert.show();
 	}
 	
@@ -170,15 +165,12 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 				upXValue = me.getX();
 				// finger moving toward left
 				if (downXValue < upXValue) {
-					// set animation
-					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.push_left_out));				
-					// flip
+					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_right));				
 					vf.showPrevious();
 				}
 				// finger moving toward right
 				if (downXValue > upXValue) {
-					//ViewFlipper vf = (ViewFlipper) findViewById(R.id.details);
-					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.push_left_in));
+					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_left));
 					vf.showNext();
 				}
 				break;
