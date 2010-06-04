@@ -14,6 +14,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -25,6 +26,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
 import android.widget.ViewFlipper;
 
 
@@ -79,12 +81,17 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	        startManagingCursor(clipsCursor);
 	        
 		    ListView lv = new ListView(this);
+		    TextView tv = new TextView(this);
+		    tv.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
+		    tv.setText(clipboardsCursor.getString(1));
+		    lv.addHeaderView(tv, null, false);
+		    
 		    SimpleCursorAdapter adapter = new SimpleCursorAdapter(
 		            this, R.layout.clip_entry,
 		            mDbHelper.queryAllClips(clipboardId), from, to);
 		    lv.setAdapter(adapter);
 		    
-	        vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+	        vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,
 	                ViewGroup.LayoutParams.WRAP_CONTENT));
 		}
 	}
