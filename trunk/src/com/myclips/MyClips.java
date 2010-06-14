@@ -14,14 +14,17 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.ContextMenu;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
@@ -34,10 +37,12 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	SharedPreferences mPrefs;
 	private static final int OPT_NEW_CLIPBOARD = 0;
 	private static final int OPT_EMAIL_CLIPBOARD = 1;
+	private static final int CNTX_INFO = 2;
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;
 	private float downYValue;
 	private int operatingClipboardID = 1;
+	String selectedClip;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -98,6 +103,8 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 			SimpleCursorAdapter adapter = new SimpleCursorAdapter(this, R.layout.clip_entry,
 					mDbHelper.queryAllClips(clipboardID), from, to);
 			lv.setAdapter(adapter);
+			
+			registerForContextMenu(lv);
 
 			vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,
 					ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -118,6 +125,40 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	}
 
 	@Override
+	public void onCreateContextMenu(ContextMenu cm, View v, ContextMenuInfo i) {
+		AdapterView.AdapterContextMenuInfo info = 
+						(AdapterView.AdapterContextMenuInfo)i;
+		selectedClip = ((TextView) info.targetView).getText().toString();
+		long selectedID = v.getId();
+		Log.i(TAG, "itemID: " + selectedID);
+		cm.setHeaderTitle(selectedClip);
+		cm.add(0, CNTX_INFO, 0, R.string.context_info);
+	}
+	
+	@Override
+	public boolean onContextItemSelected(MenuItem item) {
+		AdapterView.AdapterContextMenuInfo info = 
+			(AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+		int itemID = info.position;
+		Log.i(TAG, "itemID: " + itemID);
+		switch (item.getItemId()) {
+		case CNTX_INFO:
+			displayClipInfo(itemID);
+			return true;
+		}
+		return true;
+	}
+	
+	public void displayClipInfo(int itemID) {
+		Cursor clipCursor = mDbHelper.queryClip(itemID);
+		/*String type = clipCursor.getString(1);
+		String data = clipCursor.getString(2);
+		String time = clipCursor.getString(3);
+		String clipboard = clipCursor.getString(4);
+		Log.i(TAG, "type: "+type+"time:"+time+"clipboard:"+clipboard);*/
+	}
+	
+	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		menu.add(0, OPT_NEW_CLIPBOARD, 0, R.string.create_new_clipboard);
@@ -135,7 +176,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 			emailClipboard();
 			return true;
 		}
-
 		return super.onMenuItemSelected(featureId, item);
 	}
 
