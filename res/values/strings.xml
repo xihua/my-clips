@@ -3,4 +3,5 @@
     <string name="app_name">MyClips</string>
     <string name="clip_monitor_service">MyClips clipboard monitor</string>
     <string name="create_new_clipboard">Create new clipboard</string>
+    <string name="email_clipboard">Email this clipboard</string>
 </resources>

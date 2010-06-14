@@ -34,10 +34,11 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	ViewFlipper vf = null;
 	SharedPreferences mPrefs;
 	private static final int OPT_NEW_CLIPBOARD = 0;
+	private static final int OPT_EMAIL_CLIPBOARD = 1;
 	private ClipboardDbAdapter mDbHelper;
-	private float downXValue;	
+	private float downXValue;
+	private int operatingClipboardID = 1;
 	
-
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -62,9 +63,15 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		mDbHelper.close();
 	}
 	
+	@Override
+	protected void onStop() {
+		super.onStop();
+		SharedPreferences.Editor editor = mPrefs.edit();
+		editor.putInt(AppPrefs.KEY_OPERATING_CLIPBOARD, operatingClipboardID);
+		editor.commit();
+	}
+	
 	private void getClipboards() {
-		//Log.i(TAG, "clip count = " + clipsCursor.getCount());
-		
 		String[] from = new String[] { Clip.COL_DATA };
 		int[] to = new int[] { R.id.clipEntryText };
 		
@@ -73,10 +80,13 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
 		
 		while (clipboardsCursor.moveToNext()) {
-		    int clipboardId = clipboardsCursor.getInt(0);
+		    int clipboardID = clipboardsCursor.getInt(0);
+			
+			Log.i(TAG, "operating clipboard: " + AppPrefs.DEF_OPERATING_CLIPBOARD);
 		    Log.i(TAG, "clipboard name: " + clipboardsCursor.getString(1));
+		    
 		    Cursor clipsCursor = mDbHelper.queryAllClips(
-		            new String[] { Clip._ID, Clip.COL_DATA }, clipboardId);
+		            new String[] { Clip._ID, Clip.COL_DATA }, clipboardID);
 	        startManagingCursor(clipsCursor);
 	        
 		    ListView lv = new ListView(this);
@@ -87,7 +97,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		    
 		    SimpleCursorAdapter adapter = new SimpleCursorAdapter(
 		            this, R.layout.clip_entry,
-		            mDbHelper.queryAllClips(clipboardId), from, to);
+		            mDbHelper.queryAllClips(clipboardID), from, to);
 		    lv.setAdapter(adapter);
 		    
 	        vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,
@@ -113,6 +123,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	public boolean onCreateOptionsMenu(Menu menu) {
 	    super.onCreateOptionsMenu(menu);
 	    menu.add(0, OPT_NEW_CLIPBOARD, 0, R.string.create_new_clipboard);
+	    menu.add(0, OPT_EMAIL_CLIPBOARD, 0, R.string.email_clipboard);
 	    return true;
 	}
 	
@@ -122,7 +133,11 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		case OPT_NEW_CLIPBOARD:
 			createNewClipboard();
 			return true;
+		case OPT_EMAIL_CLIPBOARD:
+			emailClipboard();
+			return true;
 		}
+			
 		return super.onMenuItemSelected(featureId, item);
 	}
 	
@@ -156,11 +171,64 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		alert.show();
 	}
 	
+	public void emailClipboard() {		
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setMessage("Enter an email address");
+		
+		final EditText in = new EditText(this);
+		alert.setView(in);
+			
+		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				String allData = "";
+				
+				Cursor clipsCursor = mDbHelper.queryAllClips(
+			            new String[] { Clip._ID, Clip.COL_DATA }, 
+			            operatingClipboardID);
+				//Log.i(TAG, "clip count: " + clipsCursor.getCount());
+				while(clipsCursor.moveToNext()) {
+					String clipData = clipsCursor.getString(1);
+					//Log.e(TAG, "clipData:: " + clipData);
+					allData += clipData + "\n";
+				}
+				//Log.e(TAG, "allData:: " + allData);
+				
+				String emailAddr = in.getText().toString();
+				//Log.e(TAG, "emailAddr:: " + emailAddr);
+				
+				final Intent emailIntent = new Intent(android.content.Intent.ACTION_SEND);
+				emailIntent.setType("plain/text");
+				emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL, 
+												new String[]{ emailAddr });
+				emailIntent.putExtra(android.content.Intent.EXTRA_SUBJECT, 
+						"I want to share my clips with you");
+				emailIntent.putExtra(android.content.Intent.EXTRA_TEXT, 
+						allData);
+				startActivity(Intent.createChooser(emailIntent, "Sending.."));
+				
+			}
+		};
+		
+		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {  
+				// Do nothing; canceled...  
+			}  
+		};
+		
+		alert.setPositiveButton("Send", OKListener);
+		alert.setNegativeButton("Cancel", CancelListener);
+		alert.show();
+
+	}
 
 	@Override
 	public boolean onTouch(View v, MotionEvent me) {
 		// upXValue: X coordinate when the user releases the finger
 		float upXValue = 0;
+		int numOfClipboards = 0;
+		
+		Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
+		numOfClipboards = clipboardsCursor.getCount();
 		
 		switch (me.getAction()) {
 			case MotionEvent.ACTION_DOWN: {
@@ -171,13 +239,23 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 				upXValue = me.getX();
 				// finger moving toward left
 				if (downXValue < upXValue) {
-					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_right));				
+					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_right));
 					vf.showPrevious();
+					if (operatingClipboardID == 1)
+						operatingClipboardID = numOfClipboards;
+					else if (operatingClipboardID > 1)
+						operatingClipboardID--;
+					Log.e(TAG, "operatingClipboardID:: " + operatingClipboardID);
 				}
 				// finger moving toward right
 				if (downXValue > upXValue) {
 					vf.setAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_left));
 					vf.showNext();
+					if (operatingClipboardID == numOfClipboards)
+						operatingClipboardID = 1;
+					else if (operatingClipboardID < numOfClipboards)
+						operatingClipboardID++;
+					Log.e(TAG, "operatingClipboardID:: " + operatingClipboardID);
 				}
 				break;
 			}
