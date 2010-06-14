@@ -23,7 +23,6 @@ import android.view.ViewGroup;
 import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
@@ -44,15 +43,15 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		super.onCreate(savedInstanceState);
 		
 		setContentView(R.layout.main);
-		//getListView().setOnCreateContextMenuListener(this);
 		
 		mDbHelper = new ClipboardDbAdapter(this);
 		mPrefs = getSharedPreferences(AppPrefs.NAME, 0);
 		
 		getClipboards();
 		
-		LinearLayout ll = (LinearLayout) findViewById(R.id.layout_main);
-		ll.setOnTouchListener((OnTouchListener) this);
+		ClipboardFlipper vf = (ClipboardFlipper) findViewById(R.id.details);
+		vf.setInterceptTouchListener(this);
+		vf.setOnTouchListener(this);
 		
 		startClipboardMonitor();
 	}
