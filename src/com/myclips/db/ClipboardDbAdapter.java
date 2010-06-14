@@ -218,6 +218,15 @@ public class ClipboardDbAdapter implements LogTag {
         mDbHelper.getWritableDatabase().delete(CLIPS_TABLE_NAME,
                 Clip._ID + "=" + clipId, null);
     }
+    
+    /**
+     * Query a clip by clip id
+     *
+     * @param clipId  Id of clip
+     */
+    public Cursor queryClip(int clipId) {
+    	return queryClips(CLIPS_PROJECTION, Clip._ID + "=" + clipId, null, null);
+    }
 
     /**
      * Query given columns of specified clips in specified order
