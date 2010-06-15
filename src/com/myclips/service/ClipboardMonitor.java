@@ -37,7 +37,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         ".jpg", ".jpeg", ".gif", ".png"
     };
     /** Path to browser downloads */
-    private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download";
+    private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download/";
     
     private NotificationManager mNM;
     private MonitorTask mTask = new MonitorTask();
@@ -45,6 +45,7 @@ public class ClipboardMonitor extends Service implements LogTag {
     private ClipboardDbAdapter mDbAdapter;
     private SharedPreferences mPrefs;
 
+    
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -57,6 +58,9 @@ public class ClipboardMonitor extends Service implements LogTag {
         mCM = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         mDbAdapter = new ClipboardDbAdapter(this);
         mPrefs = getSharedPreferences(AppPrefs.NAME, MODE_PRIVATE);
+        AppPrefs.operatingClipboardId = mPrefs.getInt(
+                AppPrefs.KEY_OPERATING_CLIPBOARD,
+                AppPrefs.DEF_OPERATING_CLIPBOARD);
         mTask.start();
     }
 
@@ -130,8 +134,9 @@ public class ClipboardMonitor extends Service implements LogTag {
                     mOldClip = newClip;
                     mDbAdapter.insertClip(Clip.CLIP_TYPE_TEXT,
                             newClip.toString(),
-                            mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
-                                    AppPrefs.DEF_OPERATING_CLIPBOARD));
+                            AppPrefs.operatingClipboardId);
+                            //mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
+                            //        AppPrefs.DEF_OPERATING_CLIPBOARD));
                     Log.i(TAG, "new text clip inserted: " + newClip.toString());
                 }
             }
@@ -156,8 +161,9 @@ public class ClipboardMonitor extends Service implements LogTag {
             private void doDownloadCompleteAction(String path) {
                 mDbAdapter.insertClip(Clip.CLIP_TYPE_IMAGE,
                         BROWSER_DOWNLOAD_PATH + path,
-                        mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
-                                AppPrefs.DEF_OPERATING_CLIPBOARD));
+                        AppPrefs.operatingClipboardId);
+                        //mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
+                        //        AppPrefs.DEF_OPERATING_CLIPBOARD));
                 Log.i(TAG, "new image clip inserted: " + path);
             }
             
