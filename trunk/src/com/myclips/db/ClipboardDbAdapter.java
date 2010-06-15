@@ -5,6 +5,8 @@ import com.myclips.LogTag;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DataSetObservable;
+import android.database.DataSetObserver;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -39,7 +41,8 @@ public class ClipboardDbAdapter implements LogTag {
         Clip._ID, Clip.COL_TYPE, Clip.COL_DATA, Clip.COL_TIME,
         Clip.COL_CLIPBOARD
     };
-
+    
+    private static DataSetObservable mDataSetObservable = new DataSetObservable();
 
     /** Convenient class for handling database creation and upgrade */
     private static class DatabaseHelper extends SQLiteOpenHelper {
@@ -105,6 +108,7 @@ public class ClipboardDbAdapter implements LogTag {
             Log.e(TAG, "inserting new clipboard failed");
             return ;
         }
+        mDataSetObservable.notifyChanged();
     }
 
     /**
@@ -123,6 +127,7 @@ public class ClipboardDbAdapter implements LogTag {
         }
         mDbHelper.getWritableDatabase().update(CLIPBOARDS_TABLE_NAME, values,
                 Clipboard._ID + "=" + clipboardId, null);
+        mDataSetObservable.notifyChanged();
     }
 
     /**
@@ -136,6 +141,7 @@ public class ClipboardDbAdapter implements LogTag {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         db.delete(CLIPS_TABLE_NAME, Clip.COL_CLIPBOARD + "=" + clipboardId, null);
         db.delete(CLIPBOARDS_TABLE_NAME, Clipboard._ID + "=" + clipboardId, null);
+        mDataSetObservable.notifyChanged();
     }
 
     /**
@@ -180,6 +186,7 @@ public class ClipboardDbAdapter implements LogTag {
             Log.e(TAG, "add clip failed");
             return ;
         }
+        mDataSetObservable.notifyChanged();
     }
 
     /**
@@ -207,6 +214,7 @@ public class ClipboardDbAdapter implements LogTag {
             return ;
         }
         db.update(CLIPS_TABLE_NAME, values, Clip._ID + "=" + clipId, null);
+        mDataSetObservable.notifyChanged();
     }
 
     /**
@@ -217,6 +225,7 @@ public class ClipboardDbAdapter implements LogTag {
     public void deleteClip(int clipId) {
         mDbHelper.getWritableDatabase().delete(CLIPS_TABLE_NAME,
                 Clip._ID + "=" + clipId, null);
+        mDataSetObservable.notifyChanged();
     }
     
     /**
@@ -302,5 +311,13 @@ public class ClipboardDbAdapter implements LogTag {
      */
     public void close() {
         mDbHelper.close();
+    }
+    
+    public void registerDataSetObserver(DataSetObserver observer) {
+        mDataSetObservable.registerObserver(observer);
+    }
+    
+    public void unregisterDataSetObserver(DataSetObserver observer) {
+        mDataSetObservable.unregisterObserver(observer);
     }
 }
