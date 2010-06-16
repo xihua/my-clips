@@ -31,9 +31,9 @@ public class AppPrefs implements LogTag {
     /**
      * The current operating clipboard id
      * <p>
-     * This is for cache usage. Every time MyClips starts (in OnStart()), it
-     * reads from shared preference to here and writes back as it stops (in
-     * OnStop()). When ClipboardMonitor is created (in OnCreate()), it also
+     * This is for cache usage. Every time MyClips creates (in onCreate()), it
+     * reads from shared preference to here and writes back as it pauses (in
+     * onPause()). When ClipboardMonitor is created (in onCreate()), it also
      * initialize this value.
      */
     public static volatile int operatingClipboardId;
