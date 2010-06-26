@@ -12,10 +12,15 @@ import com.myclips.service.ClipboardMonitor;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -50,6 +55,9 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	private static final int CNTX_DELETE_CLIP = Menu.FIRST+5;
 	private static final int CNTX_EMAIL_CLIP = Menu.FIRST+6;
 	private ClipboardDbAdapter mDbHelper;
+	private SensorManager mSM;
+	private Sensor mSensor;
+	private MotionDetector mMD;;
 	private float downXValue;
 	private float downYValue;
 	private String selectedClipTitle;
@@ -83,6 +91,10 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		mDbHelper = new ClipboardDbAdapter(this);
 		mPrefs = getSharedPreferences(AppPrefs.NAME, 0);
 		uiHandler = new Handler(new UiHandler());
+		mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		mSensor = mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mMD = new MotionDetector();
+		mSM.registerListener(mMD, mSensor, SensorManager.SENSOR_DELAY_UI);
 
         AppPrefs.operatingClipboardId = mPrefs.getInt(
                 AppPrefs.KEY_OPERATING_CLIPBOARD,
@@ -103,6 +115,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	protected void onDestroy() {
 		super.onDestroy();
 		mDbHelper.close();
+		mSM.unregisterListener(mMD , mSensor);
 	}
 
     @Override
@@ -554,10 +567,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
         float upYValue = 0;
         float ratio;
         double angle;
-        int numOfClipboards = 0;
-
-        Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
-        numOfClipboards = clipboardsCursor.getCount();
 
         switch (me.getAction()) {
             case MotionEvent.ACTION_DOWN: {
@@ -593,8 +602,8 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
     }
 
     private class UiHandler implements Handler.Callback {
-        static final int CLIPBOARD_FLIP_RIGHT = 1;
-        static final int CLIPBOARD_FLIP_LEFT = 2;
+        public static final int CLIPBOARD_FLIP_RIGHT = 1;
+        public static final int CLIPBOARD_FLIP_LEFT = 2;
 
         @Override
         public boolean handleMessage(Message msg) {
@@ -609,6 +618,75 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
                     Log.i(TAG, "unknown message");
             }
             return true;
+        }
+    }
+    
+    private class MotionDetector implements SensorEventListener {
+        private static final float MIN_THRESHOLD = 100.0f;
+        private static final float MAX_THRESHOLD = 200.0f;
+        private static final long TIME_INTERVAL_NANO = 1000000000; 
+        private long startTime = -1;
+        
+        private int count = 0;
+        private int mode = 0;
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            // Nothing to do
+        }
+
+        protected void doActionForShaking() {
+            createNewClipboard();
+        }
+        
+        @Override
+        public void onSensorChanged(SensorEvent event) {
+            if (startTime >= 0) {
+                if ((event.timestamp - startTime) >= TIME_INTERVAL_NANO) {
+                    startTime = -1;
+                    mode = 0;
+                }
+            }
+            float aX = event.values[0];
+            float aY = event.values[1];
+            float aZ = event.values[2];
+            float a = aX * aX + aY * aY + aZ * aZ;
+            //Log.i(TAG, "a = " + a);
+            switch (mode) {
+                case 0: // normal mode
+                    if (a > MAX_THRESHOLD) {
+                        startTime = event.timestamp;
+                        mode = 1;
+                        count = 0;
+                        Log.i(TAG, "in MotionDetector: go to mode 1");
+                    }
+                    break;
+                case 1:
+                    if (a < MIN_THRESHOLD) {
+                        ++count;
+                        if (count == 2) {
+                            mode = 0;
+                            Log.i(TAG, "in MotionDetector: go back to mode 0");
+                            Log.i(TAG, "detect shaking 2 times: eta = "
+                                    + ((event.timestamp - startTime) / 1000000) + "ms");
+                            doActionForShaking();
+                        } else {
+                            mode = 2;
+                            Log.i(TAG, "in MotionDetector: go to mode 2");
+                        }
+                    }
+                    break;
+                case 2:
+                    if (a > MAX_THRESHOLD) {
+                        mode = 1;
+                        Log.i(TAG, "in MotionDetector: go to mode 1");
+                    }
+                    break;
+                default:
+                    throw new RuntimeException(getClass().getName()
+                            + ": unexpected mode");
+            }
+
         }
     }
 }
