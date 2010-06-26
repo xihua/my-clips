@@ -185,8 +185,10 @@ public class ClipboardMonitor extends Service implements LogTag {
                         }
                         break;
                     default:
-                        throw new RuntimeException("BrowserDownloadMonitor" +
-                        		" got unexpected event");
+                        Log.w(TAG, "BrowserDownloadMonitor go unexpected event: "
+                                + Integer.toHexString(event));                        
+//                        throw new RuntimeException("BrowserDownloadMonitor" +
+//                        		" got unexpected event");
                 }
             }
         }
