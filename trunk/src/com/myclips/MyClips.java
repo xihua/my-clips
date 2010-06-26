@@ -1,6 +1,8 @@
 package com.myclips;
 
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 import com.myclips.db.Clip;
 import com.myclips.db.ClipboardDbAdapter;
@@ -30,6 +32,7 @@ import android.view.View.OnTouchListener;
 import android.view.animation.AnimationUtils;
 import android.widget.AdapterView;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
@@ -39,13 +42,15 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 
 	private ViewFlipper vf = null;
 	private SharedPreferences mPrefs;
-	private static final int OPT_NEW_CLIPBOARD = 0;
-	private static final int OPT_EMAIL_CLIPBOARD = 1;
-	private static final int CNTX_INFO = 2;
+	private static final int OPT_NEW_CLIPBOARD = Menu.FIRST;
+	private static final int OPT_EMAIL_CLIPBOARD = Menu.FIRST+1;
+	private static final int CNTX_INFO = Menu.FIRST+2;
+	private static final int CNTX_DELETE_CLIP = Menu.FIRST+3;
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;
 	private float downYValue;
-	private String selectedClip;
+	private String selectedClipTitle;
+	private int clipIdInContext;
 
 	/** Records of all clipboards id in increasing order */
 	private int[] cbIdList;
@@ -57,6 +62,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	private Cursor[] cpCursor;
 	/** Clipboard cursor to iterate all clipboards */
 	private Cursor cbCursor;
+	private Cursor clipCursor;
 	/**
 	 * Clipboard cache size
 	 * <p>
@@ -83,7 +89,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 
 		vf = (ViewFlipper) findViewById(R.id.details);
 		showClipboards();
-		//getClipboards();
 
 		((ClipboardFlipper) vf).setInterceptTouchListener(this);
 		vf.setOnTouchListener(this);
@@ -264,43 +269,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
                 new int[] { R.id.clipEntryText}));
 	}
 
-	// when testing is ok, this method will be deleted
-	private void getClipboards() {
-		String[] from = new String[] { Clip.COL_DATA };
-		int[] to = new int[] { R.id.clipEntryText };
-
-		vf = (ViewFlipper) findViewById(R.id.details);
-
-		Cursor clipboardsCursor = mDbHelper.queryAllClipboards();
-
-		while (clipboardsCursor.moveToNext()) {
-		    int clipboardID = clipboardsCursor.getInt(0);
-
-			Log.i(TAG, "operating clipboard: " + AppPrefs.DEF_OPERATING_CLIPBOARD);
-		    Log.i(TAG, "clipboard name: " + clipboardsCursor.getString(1));
-
-		    Cursor clipsCursor = mDbHelper.queryAllClips(
-		            new String[] { Clip._ID, Clip.COL_DATA }, clipboardID);
-	        startManagingCursor(clipsCursor);
-
-		    ListView lv = new ListView(this);
-		    TextView tv = new TextView(this);
-		    tv.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
-		    tv.setText(clipboardsCursor.getString(1));
-		    lv.addHeaderView(tv, null, false);
-
-		    SimpleCursorAdapter adapter = new SimpleCursorAdapter(
-		            this, R.layout.clip_entry,
-		            mDbHelper.queryAllClips(clipboardID), from, to);
-		    lv.setAdapter(adapter);
-
-			registerForContextMenu(lv);
-
-	        vf.addView(lv, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,
-	                ViewGroup.LayoutParams.WRAP_CONTENT));
-		}
-	}
-
 	/* When ClipboardMonitor doesn't start on boot due to the reason like we
 	 * install new app after android phone boots, causing it won't receive
 	 * boot broadcast, this method makes sure ClipboardMonitor starts when
@@ -316,37 +284,88 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	}
 
 	@Override
-	public void onCreateContextMenu(ContextMenu cm, View v, ContextMenuInfo i) {
+	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo i) {
 		AdapterView.AdapterContextMenuInfo info =
 						(AdapterView.AdapterContextMenuInfo)i;
-		selectedClip = ((TextView) info.targetView).getText().toString();
-		long selectedID = v.getId();
-		Log.i(TAG, "itemID: " + selectedID);
-		cm.setHeaderTitle(selectedClip);
-		cm.add(0, CNTX_INFO, 0, R.string.context_info);
+		selectedClipTitle = ((TextView) info.targetView).getText().toString();
+		Log.i(TAG, "selectedClipTitle: " + selectedClipTitle);
+		menu.setHeaderTitle(selectedClipTitle);
+		menu.add(0, CNTX_INFO, 0, R.string.context_info);
+		menu.add(0, CNTX_DELETE_CLIP, 0, R.string.context_delete_clip);
 	}
 
 	@Override
 	public boolean onContextItemSelected(MenuItem item) {
 		AdapterView.AdapterContextMenuInfo info =
 			(AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
-		int itemID = info.position;
-		Log.i(TAG, "itemID: " + itemID);
+		Log.i(TAG, "listItemId: " + (info.position-1));
+		cpCursor[vf.getDisplayedChild()].moveToPosition((int) info.position-1);
+		clipCursor = cpCursor[vf.getDisplayedChild()];
+		
 		switch (item.getItemId()) {
-		case CNTX_INFO:
-			displayClipInfo(itemID);
+		case CNTX_INFO:	
+			displayClipInfo(selectedClipTitle, clipCursor);
+			return true;
+		case CNTX_DELETE_CLIP:
+			deleteClip(selectedClipTitle, clipCursor);
 			return true;
 		}
 		return true;
 	}
 
-	public void displayClipInfo(int itemID) {
-		Cursor clipCursor = mDbHelper.queryClip(itemID);
-		/*String type = clipCursor.getString(1);
+	public void displayClipInfo(String clipTitle, Cursor clipCursor) {
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setTitle("Info for " + clipTitle);
+		
+		LinearLayout ll = new LinearLayout(this);
+		ll.setOrientation(LinearLayout.VERTICAL);
+		LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+			     LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+		layoutParams.setMargins(30, 20, 30, 0);
+		final TextView tv = new TextView(this);
+		ll.addView(tv, layoutParams);
+		
+		int type = clipCursor.getInt(1);
+		if (type == 1) tv.append("Type: " + this.getString(R.string.clip_text_type) + "\n");
+		else if (type == 2) tv.append("Type: " + this.getString(R.string.clip_image_type) + "\n");
+		
+		long time = clipCursor.getLong(3);
+		SimpleDateFormat sdf = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss");
+		Date d = new Date(time);
+		d.setTime(time);
+		tv.append("Saved: " + sdf.format(d) + "\n");
+		
+		tv.append("In Clipboard: " + cpListCap[vf.getDisplayedChild()].getText() + "\n");
+		
 		String data = clipCursor.getString(2);
-		String time = clipCursor.getString(3);
-		String clipboard = clipCursor.getString(4);
-		Log.i(TAG, "type: "+type+"time:"+time+"clipboard:"+clipboard);*/
+		tv.append("Content: " + data + "\n");
+		
+		alert.setView(ll);
+		AlertDialog ad = alert.create();
+		ad.show();
+	}
+	
+	public void deleteClip(String clipTitle, final Cursor clipCursor) {
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setTitle("Delete " + clipTitle + "?");
+		alert.setMessage("Are you sure you want to delete this clip?");
+		
+		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				int clipID = clipCursor.getInt(0);
+				mDbHelper.deleteClip(clipID);
+			}
+		};
+		
+		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) { 
+				// Do nothing; cancel...
+			}
+		};
+
+		alert.setPositiveButton("Delete", OKListener);
+		alert.setNegativeButton("Cancel", CancelListener);
+		alert.show();
 	}
 
 	@Override
@@ -390,8 +409,8 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		};
 
 		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
-			public void onClick(DialogInterface dialog, int whichButton) {
-				// Do nothing; canceled...
+			public void onClick(DialogInterface dialog, int whichButton) { 
+				// Do nothing; cancel...
 			}
 		};
 
@@ -410,7 +429,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int whichButton) {
 				String allData = "";
-
 				Cursor clipsCursor = mDbHelper.queryAllClips(
 			            new String[] { Clip._ID, Clip.COL_DATA },
 			            AppPrefs.operatingClipboardId);
@@ -424,7 +442,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 
 				String emailAddr = in.getText().toString();
 				//Log.e(TAG, "emailAddr:: " + emailAddr);
-
 				final Intent emailIntent = new Intent(android.content.Intent.ACTION_SEND);
 				emailIntent.setType("plain/text");
 				emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL,
