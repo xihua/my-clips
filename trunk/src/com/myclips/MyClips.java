@@ -44,8 +44,11 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	private SharedPreferences mPrefs;
 	private static final int OPT_NEW_CLIPBOARD = Menu.FIRST;
 	private static final int OPT_EMAIL_CLIPBOARD = Menu.FIRST+1;
-	private static final int CNTX_INFO = Menu.FIRST+2;
-	private static final int CNTX_DELETE_CLIP = Menu.FIRST+3;
+	private static final int OPT_LIST_ALL_CLIPBOARDS = Menu.FIRST+2;
+	private static final int OPT_DELETE_CLIPBOARD = Menu.FIRST+3;
+	private static final int CNTX_INFO = Menu.FIRST+4;
+	private static final int CNTX_DELETE_CLIP = Menu.FIRST+5;
+	private static final int CNTX_EMAIL_CLIP = Menu.FIRST+6;
 	private ClipboardDbAdapter mDbHelper;
 	private float downXValue;
 	private float downYValue;
@@ -292,6 +295,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		menu.setHeaderTitle(selectedClipTitle);
 		menu.add(0, CNTX_INFO, 0, R.string.context_info);
 		menu.add(0, CNTX_DELETE_CLIP, 0, R.string.context_delete_clip);
+		menu.add(0, CNTX_EMAIL_CLIP, 0, R.string.context_email_clip);
 	}
 
 	@Override
@@ -309,13 +313,16 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		case CNTX_DELETE_CLIP:
 			deleteClip(selectedClipTitle, clipCursor);
 			return true;
+		case CNTX_EMAIL_CLIP:
+			emailClip(selectedClipTitle, clipCursor);
+			return true;
 		}
 		return true;
 	}
 
 	public void displayClipInfo(String clipTitle, Cursor clipCursor) {
 		AlertDialog.Builder alert = new AlertDialog.Builder(this);
-		alert.setTitle("Info for " + clipTitle);
+		alert.setTitle("Info for \"" + clipTitle + "\"");
 		
 		LinearLayout ll = new LinearLayout(this);
 		ll.setOrientation(LinearLayout.VERTICAL);
@@ -338,7 +345,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		tv.append("In Clipboard: " + cpListCap[vf.getDisplayedChild()].getText() + "\n");
 		
 		String data = clipCursor.getString(2);
-		tv.append("Content: " + data + "\n");
+		tv.append("Content: \n" + data + "\n");
 		
 		alert.setView(ll);
 		AlertDialog ad = alert.create();
@@ -347,13 +354,14 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 	
 	public void deleteClip(String clipTitle, final Cursor clipCursor) {
 		AlertDialog.Builder alert = new AlertDialog.Builder(this);
-		alert.setTitle("Delete " + clipTitle + "?");
+		alert.setTitle("Delete \"" + clipTitle + "\"?");
 		alert.setMessage("Are you sure you want to delete this clip?");
 		
 		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int whichButton) {
 				int clipID = clipCursor.getInt(0);
 				mDbHelper.deleteClip(clipID);
+				clipCursor.requery();
 			}
 		};
 		
@@ -367,12 +375,51 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		alert.setNegativeButton("Cancel", CancelListener);
 		alert.show();
 	}
+	
+	public void emailClip(String clipTitle, final Cursor clipCursor) {
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setTitle("Email \"" + clipTitle + "\"");
+		alert.setMessage("Enter an email address");
+
+		final EditText in = new EditText(this);
+		alert.setView(in);
+
+		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				String allData = clipCursor.getString(2);
+
+				String emailAddr = in.getText().toString();
+				//Log.e(TAG, "emailAddr:: " + emailAddr);
+				final Intent emailIntent = new Intent(android.content.Intent.ACTION_SEND);
+				emailIntent.setType("plain/text");
+				emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL,
+												new String[]{ emailAddr });
+				emailIntent.putExtra(android.content.Intent.EXTRA_SUBJECT,
+						"I want to share something with you");
+				emailIntent.putExtra(android.content.Intent.EXTRA_TEXT,
+						allData);
+				startActivity(Intent.createChooser(emailIntent, "Sending..."));
+			}
+		};
+
+		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+				// Do nothing; canceled...
+			}
+		};
+
+		alert.setPositiveButton("Send", OKListener);
+		alert.setNegativeButton("Cancel", CancelListener);
+		alert.show();
+	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 	    super.onCreateOptionsMenu(menu);
 	    menu.add(0, OPT_NEW_CLIPBOARD, 0, R.string.create_new_clipboard);
 	    menu.add(0, OPT_EMAIL_CLIPBOARD, 0, R.string.email_clipboard);
+	    menu.add(0, OPT_LIST_ALL_CLIPBOARDS, 0, R.string.list_all_clipboards);
+	    menu.add(0, OPT_DELETE_CLIPBOARD, 0, R.string.delete_clipboard);
 	    return true;
 	}
 
@@ -384,6 +431,12 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 			return true;
 		case OPT_EMAIL_CLIPBOARD:
 			emailClipboard();
+			return true;
+		case OPT_LIST_ALL_CLIPBOARDS:
+			listAllClipboards();
+			return true;
+		case OPT_DELETE_CLIPBOARD:
+			deleteClipboard();
 			return true;
 		}
 		return super.onMenuItemSelected(featureId, item);
@@ -450,7 +503,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 						"I want to share my clips with you");
 				emailIntent.putExtra(android.content.Intent.EXTRA_TEXT,
 						allData);
-				startActivity(Intent.createChooser(emailIntent, "Sending.."));
+				startActivity(Intent.createChooser(emailIntent, "Sending..."));
 
 			}
 		};
@@ -464,7 +517,34 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 		alert.setPositiveButton("Send", OKListener);
 		alert.setNegativeButton("Cancel", CancelListener);
 		alert.show();
+	}
+	
+	public void listAllClipboards() {
+		
+	}
+	
+	public void deleteClipboard() {
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+		alert.setTitle("Delete clipboard?");
+		alert.setMessage("Are you sure you want to delete this clipboard with all clips in?");
+		
+		DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {	
+				mDbHelper.deleteClipboard(AppPrefs.operatingClipboardId);
+				cbIndex = (cbIndex + 1) % cbIdList.length;
+				AppPrefs.operatingClipboardId = cbIdList[cbIndex];
+			}
+		};
+		
+		DialogInterface.OnClickListener CancelListener = new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) { 
+				// Do nothing; cancel...
+			}
+		};
 
+		alert.setPositiveButton("Delete", OKListener);
+		alert.setNegativeButton("Cancel", CancelListener);
+		alert.show();
 	}
 
     @Override
