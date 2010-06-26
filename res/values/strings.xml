@@ -5,4 +5,7 @@
     <string name="create_new_clipboard">Create new clipboard</string>
     <string name="email_clipboard">Email this clipboard</string>
     <string name="context_info">Info</string>
+    <string name="context_delete_clip">Delete</string>
+    <string name="clip_text_type">Text</string>
+    <string name="clip_image_type">Image</string>
 </resources>
