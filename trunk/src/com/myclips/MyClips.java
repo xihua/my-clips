@@ -135,6 +135,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
         editor.commit();
     }
 
+    /** Used for first showing clipboards */
     private void showClipboards() {
         cbCursor = mDbHelper.queryAllClipboards();
         startManagingCursor(cbCursor);
@@ -224,7 +225,111 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
             }
         }
     }
+    
+    /**
+     * When clipboards change, like create or delete a clipboard, you should
+     * call this method. If you want to change to a specified clipboard, also
+     * call this method.
+     */
+    private void updateClipboards() {
+        /*
+         * At below, we just use naive way: discard all old things and then
+         * recreate. Maybe make it smarter in the future.
+         */
+        cbCursor.requery();
 
+        //int oldCount = cbIdList.length;
+        cbIdList = new int[cbCursor.getCount()];
+        for (int i = 0; cbCursor.moveToNext(); ++i) {
+            cbIdList[i] = cbCursor.getInt(0);
+        }
+        Log.i(TAG, "cbIdList: " + Arrays.toString(cbIdList));
+        Log.i(TAG, "operatingClipboardId = " + AppPrefs.operatingClipboardId);
+
+        cbIndex = Arrays.binarySearch(cbIdList, AppPrefs.operatingClipboardId);
+        if (cbIndex < 0) {
+            // can't find operating clipboard by id; this shouldn't happen
+            Log.w(TAG, "can't find operatingClipboardId = "
+                    + AppPrefs.operatingClipboardId + ", use first clipboard");
+            cbIndex = 0;
+            AppPrefs.operatingClipboardId = cbIdList[0];
+        }
+        Log.i(TAG, "cbIndex = " + cbIndex);
+
+        vf.removeAllViews();
+        for (int i = 0; i < cpCursor.length; ++i) {
+            stopManagingCursor(cpCursor[i]);
+        }
+        
+        /*
+         * if number of clipboards <= cache size, just load all clipboards
+         */
+        if (cbIdList.length <= CB_CACHE_SIZE) {
+            cpList = new ListView[cbIdList.length];
+            cpListCap = new TextView[cbIdList.length];
+            cpCursor = new Cursor[cbIdList.length];
+
+            for (int i = 0; i < cbIdList.length; ++i) {
+                int j = (cbIndex + i) % cbIdList.length;
+                cbCursor.moveToPosition(j);
+
+                cpList[i] = new ListView(this);
+                cpListCap[i] = new TextView(this);
+                cpListCap[i].setGravity(Gravity.CENTER_VERTICAL
+                        | Gravity.CENTER_HORIZONTAL);
+                cpListCap[i].setText(cbCursor.getString(1));
+                cpList[i].addHeaderView(cpListCap[i], null, false);
+                cpCursor[i] = mDbHelper.queryAllClips(cbIdList[j]);
+                startManagingCursor(cpCursor[i]);
+                cpList[i].setAdapter(new SimpleCursorAdapter(this,
+                        R.layout.clip_entry, cpCursor[i],
+                        new String[] { Clip.COL_DATA },
+                        new int[] { R.id.clipEntryText }));
+
+                registerForContextMenu(cpList[i]);
+
+                vf.addView(cpList[i], new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.FILL_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+        } else { // number of clipboards > cache size
+            cpList = new ListView[CB_CACHE_SIZE];
+            cpListCap = new TextView[CB_CACHE_SIZE];
+            cpCursor = new Cursor[CB_CACHE_SIZE];
+
+            for (int i = 0; i < CB_CACHE_SIZE; ++i) {
+                int j;
+                if (i <= CB_CACHE_SIZE / 2) {
+                    j = (cbIndex + i) % cbIdList.length;
+                } else {
+                    j = (cbIndex + i - CB_CACHE_SIZE + cbIdList.length)
+                            % cbIdList.length;
+                }
+                //Log.i(TAG, "cbIndex: j = " + j);
+                cbCursor.moveToPosition(j);
+
+                cpList[i] = new ListView(this);
+                cpListCap[i] = new TextView(this);
+                cpListCap[i].setGravity(Gravity.CENTER_VERTICAL
+                        | Gravity.CENTER_HORIZONTAL);
+                cpListCap[i].setText(cbCursor.getString(1));
+                cpList[i].addHeaderView(cpListCap[i], null, false);
+                cpCursor[i] = mDbHelper.queryAllClips(cbIdList[j]);
+                startManagingCursor(cpCursor[i]);
+                cpList[i].setAdapter(new SimpleCursorAdapter(this,
+                        R.layout.clip_entry, cpCursor[i],
+                        new String[] { Clip.COL_DATA },
+                        new int[] { R.id.clipEntryText }));
+
+                registerForContextMenu(cpList[i]);
+
+                vf.addView(cpList[i], new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.FILL_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+        }
+    }
+    
     /**
      * Flip clipboards rightward.
      * <p>
@@ -481,10 +586,8 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
                 mDbHelper.insertClipboard(name);
                 Cursor cursor = mDbHelper.queryClipboard(name);
                 cursor.moveToNext();
-                SharedPreferences.Editor editor = mPrefs.edit();
-                editor.putInt(AppPrefs.KEY_OPERATING_CLIPBOARD, cursor
-                        .getInt(0));
-                editor.commit();
+                //AppPrefs.operatingClipboardId = cursor.getInt(0);
+                updateClipboards();
             }
         };
 
@@ -561,6 +664,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
                 mDbHelper.deleteClipboard(AppPrefs.operatingClipboardId);
                 cbIndex = (cbIndex + 1) % cbIdList.length;
                 AppPrefs.operatingClipboardId = cbIdList[cbIndex];
+                updateClipboards();
             }
         };
 
