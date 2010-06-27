@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MyClips</string>
+    <string name="sub_app_name">ClipboardList</string>
     <string name="clip_monitor_service">MyClips Clipboard Monitor</string>
     <string name="create_new_clipboard">New clipboard</string>
     <string name="email_clipboard">Email clipboard</string>
