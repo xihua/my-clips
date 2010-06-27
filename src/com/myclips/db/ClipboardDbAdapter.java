@@ -155,7 +155,7 @@ public class ClipboardDbAdapter implements LogTag {
     }
     
     /**
-     * Query the clipboard with given id
+     * Query the clipboard with given name
      *
      * @return {@link Cursor} object, which is positioned to the entry
      */
