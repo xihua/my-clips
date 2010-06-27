@@ -54,6 +54,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
     private static final int CNTX_INFO = Menu.FIRST + 4;
     private static final int CNTX_DELETE_CLIP = Menu.FIRST + 5;
     private static final int CNTX_EMAIL_CLIP = Menu.FIRST + 6;
+    private static final int CB_LIST_REQUEST_CODE = 2010;
     private ClipboardDbAdapter mDbHelper;
     private SensorManager mSM;
     private Sensor mSensor;
@@ -61,7 +62,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
     private float downXValue;
     private float downYValue;
     private String selectedClipTitle;
-    private int clipIdInContext;
+    //private int clipIdInContext;
 
     /** Records of all clipboards id in increasing order */
     private int[] cbIdList;
@@ -474,9 +475,6 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 
         tv.append("In Clipboard: " + cpListCap[vf.getDisplayedChild()].getText() + "\n");
 
-        String data = clipCursor.getString(2);
-        tv.append("Content: \n" + data + "\n");
-
         alert.setView(ll);
         AlertDialog ad = alert.create();
         ad.show();
@@ -516,10 +514,10 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
 
         DialogInterface.OnClickListener OKListener = new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                String allData = clipCursor.getString(2);
-
+                String clipData = clipCursor.getString(2);
                 String emailAddr = in.getText().toString();
                 // Log.e(TAG, "emailAddr:: " + emailAddr);
+                Log.i(TAG, "clipData:: " + clipData);
                 final Intent emailIntent = new Intent(
                         android.content.Intent.ACTION_SEND);
                 emailIntent.setType("plain/text");
@@ -528,7 +526,7 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
                 emailIntent.putExtra(android.content.Intent.EXTRA_SUBJECT,
                         "I want to share something with you");
                 emailIntent
-                        .putExtra(android.content.Intent.EXTRA_TEXT, allData);
+                        .putExtra(android.content.Intent.EXTRA_TEXT, clipData);
                 startActivity(Intent.createChooser(emailIntent, "Sending..."));
             }
         };
@@ -651,8 +649,17 @@ public class MyClips extends Activity implements OnTouchListener, LogTag {
     }
 
     public void listAllClipboards() {
-        // TODO list all clilpboards in a ListView
+    	 Intent intent = new Intent(this, ClipboardList.class);
+    	 startActivityForResult(intent, CB_LIST_REQUEST_CODE);
     }
+    
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    	if (requestCode == CB_LIST_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+    		// AppPrefs.operatingClipboardId is set in ClipboardList
+    		updateClipboards();
+        }
+    }
+   
 
     public void deleteClipboard() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
