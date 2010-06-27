@@ -37,7 +37,7 @@ public class ClipboardMonitor extends Service implements LogTag {
         ".jpg", ".jpeg", ".gif", ".png"
     };
     /** Path to browser downloads */
-    private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download/";
+    private static final String BROWSER_DOWNLOAD_PATH = "/sdcard/download";
     
     private NotificationManager mNM;
     private MonitorTask mTask = new MonitorTask();
@@ -160,7 +160,7 @@ public class ClipboardMonitor extends Service implements LogTag {
             
             private void doDownloadCompleteAction(String path) {
                 mDbAdapter.insertClip(Clip.CLIP_TYPE_IMAGE,
-                        BROWSER_DOWNLOAD_PATH + path,
+                        BROWSER_DOWNLOAD_PATH + "/" + path,
                         AppPrefs.operatingClipboardId);
                         //mPrefs.getInt(AppPrefs.KEY_OPERATING_CLIPBOARD,
                         //        AppPrefs.DEF_OPERATING_CLIPBOARD));
